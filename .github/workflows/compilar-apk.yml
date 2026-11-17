@@ -1,0 +1,64 @@
+name: Compilar Extension APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      lang:
+        description: "Idioma (ej: es)"
+        required: true
+        default: "es"
+      slug:
+        description: "Carpeta de la extension (ej: capibaratraductor)"
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar mis extensiones
+        uses: actions/checkout@v4
+        with:
+          path: mis-fuentes
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Clonar keiyoushi/extensions-source (sparse)
+        run: |
+          git clone --filter=blob:none --sparse https://github.com/keiyoushi/extensions-source.git extensions-source
+          cd extensions-source
+          git sparse-checkout set --cone --sparse-index
+          git sparse-checkout add common compiler core gradle lib lib-multisrc
+
+      - name: Copiar extension al repo oficial
+        run: |
+          SRC_DIR="mis-fuentes/src/${{ inputs.lang }}/${{ inputs.slug }}"
+          DEST_DIR="extensions-source/src/${{ inputs.lang }}/${{ inputs.slug }}"
+          mkdir -p "$DEST_DIR"
+          cp -r "$SRC_DIR/." "$DEST_DIR/"
+
+      - name: Aceptar licencias Android SDK
+        run: |
+          SDKM=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          if [ -n "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Configurar cache de Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK
+        working-directory: extensions-source
+        run: |
+          chmod +x gradlew
+          ./gradlew ":src:${{ inputs.lang }}:${{ inputs.slug }}:spotlessApply" ":src:${{ inputs.lang }}:${{ inputs.slug }}:assembleDebug" --no-daemon
+
+      - name: Subir APK compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.lang }}-${{ inputs.slug }}-apk
+          path: extensions-source/src/${{ inputs.lang }}/${{ inputs.slug }}/build/outputs/apk/debug/*.apk
