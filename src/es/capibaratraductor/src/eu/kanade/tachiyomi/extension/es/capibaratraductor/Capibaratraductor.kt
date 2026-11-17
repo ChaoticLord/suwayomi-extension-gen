@@ -42,6 +42,8 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
+import keiyoushi.network.rateLimit
+import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class Capibaratraductor : KeiSource() {
