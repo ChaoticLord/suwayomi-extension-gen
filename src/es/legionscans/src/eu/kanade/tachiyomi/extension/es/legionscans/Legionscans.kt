@@ -17,6 +17,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import kotlin.time.Duration.Companion.seconds
@@ -132,6 +133,13 @@ abstract class Legionscans : MangaThemesia() {
             throw Exception("Este capítulo es una novela de texto y no es compatible con lectores de imágenes.")
         }
 
+        val readerAreaImages = extractReaderAreaImages(document)
+        if (readerAreaImages.isNotEmpty()) {
+            return readerAreaImages.mapIndexed { index, imageUrl ->
+                Page(index, imageUrl = imageUrl)
+            }
+        }
+
         val scriptImages = extractTsReaderImages(document)
         if (scriptImages.isNotEmpty()) {
             return scriptImages.mapIndexed { index, imageUrl ->
@@ -139,27 +147,47 @@ abstract class Legionscans : MangaThemesia() {
             }
         }
 
-        val readerImages = document
-            .select("#readerarea img, .rdminimal img, .reading-content img, .chapter-content img")
+        val fallbackImages = document
+            .select(".rdminimal img, .reading-content img, .chapter-content img")
             .filterNot { img ->
                 img.closest(".chapter-header, .headpost, .wpdiscuz-comment-pagination, #comments, .related") != null
             }
             .mapNotNull { extractImageUrl(it) }
             .distinct()
 
-        if (readerImages.isEmpty()) {
+        if (fallbackImages.isEmpty()) {
             if (document.select("#readerarea p, .novel-content p, .text-chapter p").text().length > 300) {
                 throw Exception("Este capítulo es una novela de texto y no es compatible con lectores de imágenes.")
             }
             throw Exception("No se encontraron páginas de imágenes en este capítulo.")
         }
 
-        return readerImages.mapIndexed { index, imageUrl ->
+        return fallbackImages.mapIndexed { index, imageUrl ->
             Page(index, imageUrl = imageUrl)
         }
     }
 
     override fun getFilterList(data: JsonElement?): FilterList = getLegionscansFilterList()
+
+    private fun extractReaderAreaImages(document: Document): List<String> {
+        val directImages = document
+            .select("#readerarea img")
+            .filterNot { img ->
+                img.closest(".chapter-header, .headpost, .wpdiscuz-comment-pagination, #comments, .related") != null
+            }
+            .mapNotNull { extractImageUrl(it) }
+            .distinct()
+
+        if (directImages.isNotEmpty()) return directImages
+
+        return document.select("#readerarea noscript")
+            .flatMap { noscript ->
+                val rawHtml = noscript.data().ifBlank { noscript.html() }
+                Jsoup.parseBodyFragment(rawHtml, document.baseUri()).select("img")
+            }
+            .mapNotNull { extractImageUrl(it) }
+            .distinct()
+    }
 
     private fun parseListingPage(document: Document): MangasPage {
         val hasNextPage = document.selectFirst(
@@ -251,20 +279,22 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     private fun extractImageUrl(img: Element): String? {
-        val attrs = listOf("data-src", "data-lazy-src", "data-original", "data-url", "data-cfsrc", "data-echo")
+        val attrs = listOf("data-src", "data-lazy-src", "data-lazy", "data-original", "data-url", "data-cfsrc", "data-echo")
         for (attr in attrs) {
             val candidate = img.absUrl(attr).ifBlank { img.attr(attr).trim() }
             if (candidate.startsWith("http") && !isIgnoredImageUrl(candidate)) {
                 return candidate
             }
         }
-        val srcsetUrl = img.attr("srcset").split(",").firstOrNull()
-            ?.trim()
-            ?.substringBefore(" ")
-            ?.trim()
-            .orEmpty()
-        if (srcsetUrl.startsWith("http") && !isIgnoredImageUrl(srcsetUrl)) {
-            return srcsetUrl
+        for (srcsetAttr in listOf("data-srcset", "srcset")) {
+            val srcsetUrl = img.attr(srcsetAttr).split(",").firstOrNull()
+                ?.trim()
+                ?.substringBefore(" ")
+                ?.trim()
+                .orEmpty()
+            if (srcsetUrl.startsWith("http") && !isIgnoredImageUrl(srcsetUrl)) {
+                return srcsetUrl
+            }
         }
         val src = img.absUrl("src").ifBlank { img.attr("src").trim() }
         return src.takeIf { it.startsWith("http") && !isIgnoredImageUrl(it) }
