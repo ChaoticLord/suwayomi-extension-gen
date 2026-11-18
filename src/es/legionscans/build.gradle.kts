@@ -5,7 +5,7 @@ plugins {
 }
 
 keiyoushi {
-    name = "legionscans"
+    name = "Legionscans"
     versionCode = 1
     contentWarning = ContentWarning.SAFE
     libVersion = "1.6"
@@ -13,11 +13,10 @@ keiyoushi {
 
     source {
         lang = "es"
-        baseUrl = "https://legionscans.com/wp"
+        baseUrl = "https://legionscans.com"
     }
 
     deeplink {
-        path("/wp/manga/..*")
-        path("/wp/..*")
+        path("/manga/.*");
     }
 }
