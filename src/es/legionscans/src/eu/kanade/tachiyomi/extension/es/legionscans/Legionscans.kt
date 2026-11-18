@@ -12,6 +12,7 @@ import keiyoushi.network.Fetch
 import keiyoushi.network.get
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.asJsoup
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -31,8 +32,7 @@ abstract class Legionscans : MangaThemesia() {
 
     override val mangaUrlDirectory: String = "/wp/manga"
 
-    override fun OkHttpClient.Builder.configureClient(): OkHttpClient.Builder =
-        rateLimit(permits = 2, period = 1.seconds)
+    override fun OkHttpClient.Builder.configureClient(): OkHttpClient.Builder = rateLimit(permits = 2, period = 1.seconds)
 
     override suspend fun getPopularManga(page: Int): MangasPage {
         val url = "$baseUrl$mangaUrlDirectory/".toHttpUrl().newBuilder()
@@ -121,7 +121,13 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     override suspend fun getPageList(chapter: SChapter): List<Page> {
-        val pages = runCatching { super.getPageList(chapter) }.getOrNull().orEmpty()
+        val pages = try {
+            super.getPageList(chapter)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
         val validPages = pages.filterNot { isIgnoredImageUrl(it.imageUrl) }
         if (validPages.isNotEmpty()) {
             return validPages
@@ -142,7 +148,9 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     override suspend fun getMangaByUrl(url: HttpUrl): SManga? {
-        if (!url.encodedPath.startsWith(mangaUrlDirectory)) return null
+        if (url.host != baseUrl.toHttpUrl().host || !url.encodedPath.startsWith(mangaUrlDirectory)) {
+            return null
+        }
         val stub = SManga.create().apply {
             this.url = url.encodedPath
         }
@@ -226,8 +234,8 @@ abstract class Legionscans : MangaThemesia() {
             val label = item.selectFirst("b, span")?.text()?.let(::normalizeText).orEmpty()
             val value = item.selectFirst("i, a, span:last-child")?.text()?.trim()
                 ?: item.ownText().trim()
-            if (label.isNotBlank() && value.isNotBlank()) {
-                infoMap.putIfAbsent(label, value)
+            if (label.isNotBlank() && value.isNotBlank() && !infoMap.containsKey(label)) {
+                infoMap[label] = value
             }
         }
 
