@@ -17,6 +17,6 @@ keiyoushi {
     }
 
     deeplink {
-        path("/wp/manga/..*")
+        path("/wp/..*")
     }
 }
