@@ -22,7 +22,6 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.Normalizer
-import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -295,6 +294,6 @@ abstract class Aquellosquetraducen : KeiSource() {
         }
 
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT)
-        return formatter.tryParseDate(raw) ?: Instant.now().toEpochMilli()
+        return formatter.tryParseDate(raw)
     }
 }
