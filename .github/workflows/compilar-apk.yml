@@ -56,7 +56,6 @@ jobs:
 
           if [ -z "$SRC_DIR" ]; then
             echo "ERROR: No se encontro '${{ inputs.slug }}/build.gradle.kts' en el repositorio."
-            echo "Archivos encontrados en tu repositorio:"
             find mis-fuentes -maxdepth 4 -not -path '*/.git*'
             exit 1
           fi
