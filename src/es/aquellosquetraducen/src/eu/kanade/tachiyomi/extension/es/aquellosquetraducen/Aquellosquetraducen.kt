@@ -13,12 +13,10 @@ import keiyoushi.network.get
 import keiyoushi.network.rateLimit
 import keiyoushi.source.KeiSource
 import keiyoushi.utils.asJsoup
-import keiyoushi.utils.runWebView
 import keiyoushi.utils.tryParseDate
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.Normalizer
@@ -35,19 +33,8 @@ abstract class Aquellosquetraducen : KeiSource() {
     override fun OkHttpClient.Builder.configureClient(): OkHttpClient.Builder =
         rateLimit(permits = 2, period = 1.seconds)
 
-    private suspend fun fetchRenderedDocument(url: String): Document {
-        val response = client.get(url, Fetch.DOCUMENT)
-        val doc = response.asJsoup()
-        val hasCards = doc.select("#carousel-populares a, #carousel-manhwas a, #carousel-manhuas a, #carousel-mangas a, .card a, .manga-card a").isNotEmpty()
-        if (hasCards) return doc
-
-        val html = runWebView {
-            loadUrl(url)
-            waitForSelector("#carousel-populares a, #carousel-manhwas a, .card a, a[href]")
-            evaluate("document.documentElement.outerHTML")
-        }
-        return if (!html.isNullOrBlank()) Jsoup.parse(html, url) else doc
-    }
+    private suspend fun fetchDocument(url: String): Document =
+        client.get(url, Fetch.DOCUMENT).asJsoup()
 
     private fun isNovelCard(element: Element): Boolean {
         if (element.closest("#carousel-novelas") != null) return true
@@ -97,13 +84,13 @@ abstract class Aquellosquetraducen : KeiSource() {
     }
 
     override suspend fun getPopularManga(page: Int): MangasPage {
-        val doc = fetchRenderedDocument("$baseUrl/index.html")
+        val doc = fetchDocument("$baseUrl/index.html")
         val cards = doc.select("#carousel-populares a[href], #carousel-manhwas a[href], #carousel-manhuas a[href], #carousel-mangas-color a[href], #carousel-mangas a[href]")
         return MangasPage(parseCardList(cards), false)
     }
 
     override suspend fun getLatestUpdates(page: Int): MangasPage {
-        val doc = fetchRenderedDocument("$baseUrl/proyectos.html")
+        val doc = fetchDocument("$baseUrl/proyectos.html")
         val cards = doc.select("main a[href], section a[href], .carousel a[href], .card a[href]")
         val mangas = parseCardList(cards)
         return if (mangas.isNotEmpty()) {
@@ -114,7 +101,7 @@ abstract class Aquellosquetraducen : KeiSource() {
     }
 
     override suspend fun getSearchMangaList(page: Int, query: String, filters: FilterList): MangasPage {
-        val doc = fetchRenderedDocument("$baseUrl/index.html")
+        val doc = fetchDocument("$baseUrl/index.html")
         val categoryFilter = filters.filterIsInstance<CategoryFilter>().firstOrNull()?.selectedValue() ?: "all"
 
         val selector = when (categoryFilter) {
@@ -142,7 +129,7 @@ abstract class Aquellosquetraducen : KeiSource() {
         fetchChapters: Boolean,
     ): SMangaUpdate {
         val url = if (manga.url.startsWith("http")) manga.url else "$baseUrl${manga.url}"
-        val doc = fetchRenderedDocument(url)
+        val doc = fetchDocument(url)
 
         val updatedManga = if (fetchDetails) {
             SManga.create().apply {
@@ -197,14 +184,16 @@ abstract class Aquellosquetraducen : KeiSource() {
 
     override suspend fun getPageList(chapter: SChapter): List<Page> {
         val url = if (chapter.url.startsWith("http")) chapter.url else "$baseUrl${chapter.url}"
-        val doc = fetchRenderedDocument(url)
+        val doc = fetchDocument(url)
 
         val isNovel = doc.select(".badge, .tag").any {
             Regex("""\b(novela|novel|light novel|web novel)\b""", RegexOption.IGNORE_CASE).containsMatchIn(it.text())
         }
-        val images = doc.select("#readerarea img, .reader img, .chapter-content img, main img")
+        val domImages = doc.select("#readerarea img, .reader img, .chapter-content img, main img")
             .mapNotNull { extractImageUrl(it) }
             .filterNot { it.contains("logo", true) || it.contains("avatar", true) || it.contains("reclutar", true) }
+
+        val images = domImages.ifEmpty { extractScriptImages(doc) }
 
         if (images.isEmpty()) {
             if (isNovel) {
@@ -218,8 +207,16 @@ abstract class Aquellosquetraducen : KeiSource() {
         }
     }
 
+    private fun extractScriptImages(doc: Document): List<String> {
+        val urlRegex = Regex("""https?://[^"'\s<>\\]+\.(?:jpe?g|png|webp|avif)(?:\?[^"'\s<>\\]*)?""", RegexOption.IGNORE_CASE)
+        return doc.select("script")
+            .flatMap { script -> urlRegex.findAll(script.data()).map { it.value }.toList() }
+            .distinct()
+            .filterNot { it.contains("logo", true) || it.contains("avatar", true) || it.contains("reclutar", true) || it.contains("cover", true) || it.contains("portada", true) }
+    }
+
     override suspend fun getMangaByUrl(url: HttpUrl): SManga? {
-        val doc = fetchRenderedDocument(url.toString())
+        val doc = fetchDocument(url.toString())
         val title = doc.selectFirst("h1, h2.manga-title, .title")?.text()?.trim() ?: return null
         return SManga.create().apply {
             setUrlWithoutDomain(url.toString())
