@@ -13,8 +13,8 @@ import keiyoushi.network.Fetch
 import keiyoushi.network.get
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.asJsoup
-import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParseDate
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,7 +22,6 @@ import okhttp3.OkHttpClient
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.text.Normalizer
-import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -399,7 +398,7 @@ abstract class Legionscans : MangaThemesia() {
             if (!data.contains("ts_reader.run")) continue
             val match = TS_READER_REGEX.find(data) ?: continue
             val jsonPayload = match.groupValues.getOrNull(1) ?: continue
-            val dto = runCatching { jsonPayload.parseAs<TsReaderDto>() }.getOrNull() ?: continue
+            val dto = runCatching { tsJson.decodeFromString<TsReaderDto>(jsonPayload) }.getOrNull() ?: continue
             val images = dto.sources
                 ?.firstOrNull { source -> !source?.images.isNullOrEmpty() }
                 ?.images
@@ -528,6 +527,7 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     companion object {
+        private val tsJson = Json { ignoreUnknownKeys = true }
         private val WHITESPACE_REGEX = Regex("""\s+""")
         private val DIACRITICS_REGEX = Regex("""\p{InCombiningDiacriticalMarks}+""")
         private val NOVEL_REGEX = Regex("""\b(?:novela|novel|light[-\s]?novel|web[-\s]?novel)\b""", RegexOption.IGNORE_CASE)
@@ -553,7 +553,7 @@ abstract class Legionscans : MangaThemesia() {
             "blank.gif",
         )
 
-        private val SPANISH_LOCALE = Locale("es", "ES")
+        private val SPANISH_LOCALE = Locale.forLanguageTag("es-ES")
         private val DATE_FORMATTERS = listOf(
             DateTimeFormatter.ofPattern("MMMM d, yyyy", SPANISH_LOCALE),
             DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", SPANISH_LOCALE),
