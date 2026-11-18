@@ -13,7 +13,7 @@ keiyoushi {
 
     source {
         lang = "es"
-        baseUrl = "https://legionscans.com"
+        baseUrl = "https://legionscans.com/wp"
     }
 
     deeplink {
