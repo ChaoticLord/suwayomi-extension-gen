@@ -33,8 +33,7 @@ jobs:
           cd extensions-source
           git sparse-checkout set --cone --sparse-index
           git sparse-checkout add common compiler core gradle lib lib-multisrc lint-rules
-          EXTRA_DIRS=$(grep -oE 'include(":[^":]+' settings.gradle.kts | sed 's/include("://' | grep -v '^src' | tr '
-' ' ')
+          EXTRA_DIRS=$(grep -oE 'include[(]":[^":]+' settings.gradle.kts | sed 's/include("://' | grep -v '^src' | xargs || true)
           if [ -n "$EXTRA_DIRS" ]; then
             git sparse-checkout add $EXTRA_DIRS || true
           fi

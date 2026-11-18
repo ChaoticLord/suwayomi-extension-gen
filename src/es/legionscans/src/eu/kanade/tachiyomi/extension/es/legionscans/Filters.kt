@@ -1,30 +1,27 @@
 package eu.kanade.tachiyomi.extension.es.legionscans
 
 import eu.kanade.tachiyomi.source.model.Filter
-import eu.kanade.tachiyomi.source.model.FilterList
 
-open class LegionscansSelectFilter(
-    name: String,
-    private val options: Array<Pair<String, String>>,
-    state: Int = 0,
-) : Filter.Select<String>(name, options.map { it.first }.toTypedArray(), state) {
+open class SelectFilter(
+    displayName: String,
+    private val options: List<Pair<String, String>>,
+) : Filter.Select<String>(displayName, options.map { it.first }.toTypedArray()) {
     fun selectedValue(): String = options[state].second
 }
 
-class LegionscansStatusFilter : LegionscansSelectFilter(
+class StatusFilter : SelectFilter(
     "Estado",
-    arrayOf(
+    listOf(
         "Todos" to "",
         "En emisión" to "ongoing",
         "Finalizado" to "completed",
-        "Pausado" to "hiatus",
-        "Cancelado" to "dropped",
+        "En pausa" to "hiatus",
     ),
 )
 
-class LegionscansTypeFilter : LegionscansSelectFilter(
+class TypeFilter : SelectFilter(
     "Tipo",
-    arrayOf(
+    listOf(
         "Todos" to "",
         "Manga" to "manga",
         "Manhwa" to "manhwa",
@@ -33,47 +30,49 @@ class LegionscansTypeFilter : LegionscansSelectFilter(
     ),
 )
 
-class LegionscansOrderByFilter : LegionscansSelectFilter(
+class OrderFilter : SelectFilter(
     "Ordenar por",
-    arrayOf(
+    listOf(
         "Por defecto" to "",
-        "A-Z" to "title",
-        "Z-A" to "titlereverse",
-        "Actualización" to "update",
-        "Más nuevo" to "latest",
-        "Popularidad" to "popular",
+        "Popular" to "popular",
+        "Últimas actualizaciones" to "update",
+        "Recién agregados" to "latest",
+        "A - Z" to "title",
+        "Z - A" to "titlereverse",
     ),
 )
 
-class LegionscansGenreCheckBox(name: String, val id: String) : Filter.CheckBox(name)
+class GenreCheckBox(name: String, val id: String) : Filter.CheckBox(name)
 
-class LegionscansGenreListFilter(genres: List<LegionscansGenreCheckBox>) : Filter.Group<LegionscansGenreCheckBox>("Géneros", genres)
-
-fun getLegionscansFilterList(): FilterList = FilterList(
-    LegionscansStatusFilter(),
-    LegionscansTypeFilter(),
-    LegionscansOrderByFilter(),
-    LegionscansGenreListFilter(
-        listOf(
-            LegionscansGenreCheckBox("Acción", "accion"),
-            LegionscansGenreCheckBox("Artes Marciales", "artes-marciales"),
-            LegionscansGenreCheckBox("Aventura", "aventura"),
-            LegionscansGenreCheckBox("Comedia", "comedia"),
-            LegionscansGenreCheckBox("Drama", "drama"),
-            LegionscansGenreCheckBox("Fantasía", "fantasia"),
-            LegionscansGenreCheckBox("Harem", "harem"),
-            LegionscansGenreCheckBox("Isekai", "isekai"),
-            LegionscansGenreCheckBox("Magia", "magia"),
-            LegionscansGenreCheckBox("Misterio", "misterio"),
-            LegionscansGenreCheckBox("Psicológico", "psicologico"),
-            LegionscansGenreCheckBox("Reencarnación", "reencarnacion"),
-            LegionscansGenreCheckBox("Romance", "romance"),
-            LegionscansGenreCheckBox("Sci-Fi", "sci-fi"),
-            LegionscansGenreCheckBox("Seinen", "seinen"),
-            LegionscansGenreCheckBox("Shonen", "shonen"),
-            LegionscansGenreCheckBox("Sobrenatural", "sobrenatural"),
-            LegionscansGenreCheckBox("Tragedia", "tragedia"),
-            LegionscansGenreCheckBox("Vida Escolar", "vida-escolar"),
-        ),
+class GenreFilter : Filter.Group<GenreCheckBox>(
+    "Géneros",
+    listOf(
+        GenreCheckBox("Acción", "accion"),
+        GenreCheckBox("Artes Marciales", "artes-marciales"),
+        GenreCheckBox("Aventura", "aventura"),
+        GenreCheckBox("Comedia", "comedia"),
+        GenreCheckBox("Demonios", "demonios"),
+        GenreCheckBox("Drama", "drama"),
+        GenreCheckBox("Ecchi", "ecchi"),
+        GenreCheckBox("Fantasía", "fantasia"),
+        GenreCheckBox("Harem", "harem"),
+        GenreCheckBox("Histórico", "historico"),
+        GenreCheckBox("Horror", "horror"),
+        GenreCheckBox("Isekai", "isekai"),
+        GenreCheckBox("Josei", "josei"),
+        GenreCheckBox("Magia", "magia"),
+        GenreCheckBox("Misterio", "misterio"),
+        GenreCheckBox("Psicológico", "psicologico"),
+        GenreCheckBox("Reencarnación", "reencarnacion"),
+        GenreCheckBox("Romance", "romance"),
+        GenreCheckBox("Sci-Fi", "sci-fi"),
+        GenreCheckBox("Seinen", "seinen"),
+        GenreCheckBox("Shoujo", "shoujo"),
+        GenreCheckBox("Shounen", "shounen"),
+        GenreCheckBox("Slice of Life", "slice-of-life"),
+        GenreCheckBox("Sobrenatural", "sobrenatural"),
+        GenreCheckBox("Tragedia", "tragedia"),
+        GenreCheckBox("Vida Escolar", "vida-escolar"),
+        GenreCheckBox("Webtoon", "webtoon"),
     ),
 )
