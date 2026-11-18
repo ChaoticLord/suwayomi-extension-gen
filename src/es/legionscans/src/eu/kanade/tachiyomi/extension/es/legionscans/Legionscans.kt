@@ -39,7 +39,7 @@ abstract class Legionscans : MangaThemesia() {
             .addQueryParameter("page", page.toString())
             .addQueryParameter("order", "popular")
             .build()
-        val document = client.get(url.toString(), Fetch.DOCUMENT).asJsoup()
+        val document = client.get(url, Fetch.DOCUMENT).asJsoup()
         return parseMangaList(document)
     }
 
@@ -48,7 +48,7 @@ abstract class Legionscans : MangaThemesia() {
             .addQueryParameter("page", page.toString())
             .addQueryParameter("order", "update")
             .build()
-        val document = client.get(url.toString(), Fetch.DOCUMENT).asJsoup()
+        val document = client.get(url, Fetch.DOCUMENT).asJsoup()
         return parseMangaList(document)
     }
 
@@ -61,10 +61,10 @@ abstract class Legionscans : MangaThemesia() {
 
         filterList.forEach { filter ->
             when (filter) {
-                is StatusFilter -> status = filter.selectedValue()
-                is TypeFilter -> type = filter.selectedValue()
-                is OrderFilter -> order = filter.selectedValue()
-                is GenreFilter -> filter.state.filter { it.state }.forEach { genres.add(it.id) }
+                is LegionStatusFilter -> status = filter.selectedValue()
+                is LegionTypeFilter -> type = filter.selectedValue()
+                is LegionOrderFilter -> order = filter.selectedValue()
+                is LegionGenreFilter -> filter.state.filter { it.state }.forEach { genres.add(it.id) }
                 else -> {}
             }
         }
@@ -87,7 +87,7 @@ abstract class Legionscans : MangaThemesia() {
             }.build()
         }
 
-        val document = client.get(requestUrl.toString(), Fetch.DOCUMENT).asJsoup()
+        val document = client.get(requestUrl, Fetch.DOCUMENT).asJsoup()
         val parsed = parseMangaList(document)
 
         if (query.isNotBlank() && parsed.mangas.isNotEmpty()) {
@@ -129,9 +129,10 @@ abstract class Legionscans : MangaThemesia() {
 
         val chapterUrl = if (chapter.url.startsWith("http")) chapter.url else "$baseUrl${chapter.url}"
         val document = client.get(chapterUrl, Fetch.DOCUMENT).asJsoup()
+        val hasReaderScript = document.selectFirst("script:containsData(ts_reader.run)") != null
+        val paragraphChars = document.select("div#readerarea p").sumOf { it.text().trim().length }
         val isNovel = document.selectFirst("span.type.Novel, span.type.Novela, a[href*='/novela/'], a[href*='/novel/']") != null ||
-            (document.selectFirst("script:containsData(ts_reader.run)") == null &&
-                document.select("div#readerarea p").sumOf { it.text().trim().length } > 150)
+            (!hasReaderScript && paragraphChars > 150)
 
         if (isNovel) {
             throw Exception("Este capítulo es una novela de texto y no es compatible con lectores de imágenes.")
@@ -149,10 +150,10 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     override fun getFilterList(data: JsonElement?): FilterList = FilterList(
-        StatusFilter(),
-        TypeFilter(),
-        OrderFilter(),
-        GenreFilter(),
+        LegionStatusFilter(),
+        LegionTypeFilter(),
+        LegionOrderFilter(),
+        LegionGenreFilter(),
     )
 
     private fun parseMangaList(document: Document): MangasPage {
@@ -241,9 +242,9 @@ abstract class Legionscans : MangaThemesia() {
             }
             .orEmpty()
 
-        val rawStatus = infoMap["estado"] ?: infoMap["status"]
-            ?: document.selectFirst(".status, [class*=status], [class*=estado]")?.text()
-            .orEmpty()
+        val rawStatus = infoMap["estado"]
+            ?: infoMap["status"]
+            ?: document.selectFirst(".status, [class*=status], [class*=estado]")?.text().orEmpty()
 
         val genres = document.select(".seriestugenre a, .mgen a, .gnr a")
             .map { it.text().trim() }
@@ -262,8 +263,11 @@ abstract class Legionscans : MangaThemesia() {
             title = document.selectFirst("h1.entry-title")?.text()?.trim().takeUnless { it.isNullOrBlank() } ?: baseManga.title
             thumbnail_url = document.selectFirst(".seriestucont .thumb img, .thumb img, meta[property=og:image]")
                 ?.let { el ->
-                    if (el.tagName() == "meta") el.absUrl("content").takeIf { it.isNotBlank() }
-                    else extractImageUrl(el)
+                    if (el.tagName() == "meta") {
+                        el.absUrl("content").takeIf { it.isNotBlank() }
+                    } else {
+                        extractImageUrl(el)
+                    }
                 } ?: baseManga.thumbnail_url
             author = infoMap["autor"] ?: infoMap["author"]
             artist = infoMap["artista"] ?: infoMap["artist"]
@@ -384,7 +388,7 @@ abstract class Legionscans : MangaThemesia() {
             "d/M/yyyy",
             "yyyy-MM-dd",
         )
-        val locales = listOf(Locale("es", "ES"), Locale.ENGLISH)
+        val locales = listOf(Locale.forLanguageTag("es-ES"), Locale.ENGLISH)
 
         for (locale in locales) {
             for (pattern in patterns) {
