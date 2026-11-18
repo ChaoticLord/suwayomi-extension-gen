@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.extension.es.legionscans
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 
-open class SelectFilter(
+open class LegionscansSelectFilter(
     name: String,
     private val options: Array<Pair<String, String>>,
     state: Int = 0,
@@ -11,7 +11,7 @@ open class SelectFilter(
     fun selectedValue(): String = options[state].second
 }
 
-class StatusFilter : SelectFilter(
+class LegionscansStatusFilter : LegionscansSelectFilter(
     "Estado",
     arrayOf(
         "Todos" to "",
@@ -22,7 +22,7 @@ class StatusFilter : SelectFilter(
     ),
 )
 
-class TypeFilter : SelectFilter(
+class LegionscansTypeFilter : LegionscansSelectFilter(
     "Tipo",
     arrayOf(
         "Todos" to "",
@@ -33,7 +33,7 @@ class TypeFilter : SelectFilter(
     ),
 )
 
-class OrderByFilter : SelectFilter(
+class LegionscansOrderByFilter : LegionscansSelectFilter(
     "Ordenar por",
     arrayOf(
         "Por defecto" to "",
@@ -45,35 +45,35 @@ class OrderByFilter : SelectFilter(
     ),
 )
 
-class GenreCheckBox(name: String, val id: String) : Filter.CheckBox(name)
+class LegionscansGenreCheckBox(name: String, val id: String) : Filter.CheckBox(name)
 
-class GenreListFilter(genres: List<GenreCheckBox>) : Filter.Group<GenreCheckBox>("Géneros", genres)
+class LegionscansGenreListFilter(genres: List<LegionscansGenreCheckBox>) : Filter.Group<LegionscansGenreCheckBox>("Géneros", genres)
 
 fun getLegionscansFilterList(): FilterList = FilterList(
-    StatusFilter(),
-    TypeFilter(),
-    OrderByFilter(),
-    GenreListFilter(
+    LegionscansStatusFilter(),
+    LegionscansTypeFilter(),
+    LegionscansOrderByFilter(),
+    LegionscansGenreListFilter(
         listOf(
-            GenreCheckBox("Acción", "accion"),
-            GenreCheckBox("Artes Marciales", "artes-marciales"),
-            GenreCheckBox("Aventura", "aventura"),
-            GenreCheckBox("Comedia", "comedia"),
-            GenreCheckBox("Drama", "drama"),
-            GenreCheckBox("Fantasía", "fantasia"),
-            GenreCheckBox("Harem", "harem"),
-            GenreCheckBox("Isekai", "isekai"),
-            GenreCheckBox("Magia", "magia"),
-            GenreCheckBox("Misterio", "misterio"),
-            GenreCheckBox("Psicológico", "psicologico"),
-            GenreCheckBox("Reencarnación", "reencarnacion"),
-            GenreCheckBox("Romance", "romance"),
-            GenreCheckBox("Sci-Fi", "sci-fi"),
-            GenreCheckBox("Seinen", "seinen"),
-            GenreCheckBox("Shonen", "shonen"),
-            GenreCheckBox("Sobrenatural", "sobrenatural"),
-            GenreCheckBox("Tragedia", "tragedia"),
-            GenreCheckBox("Vida Escolar", "vida-escolar"),
+            LegionscansGenreCheckBox("Acción", "accion"),
+            LegionscansGenreCheckBox("Artes Marciales", "artes-marciales"),
+            LegionscansGenreCheckBox("Aventura", "aventura"),
+            LegionscansGenreCheckBox("Comedia", "comedia"),
+            LegionscansGenreCheckBox("Drama", "drama"),
+            LegionscansGenreCheckBox("Fantasía", "fantasia"),
+            LegionscansGenreCheckBox("Harem", "harem"),
+            LegionscansGenreCheckBox("Isekai", "isekai"),
+            LegionscansGenreCheckBox("Magia", "magia"),
+            LegionscansGenreCheckBox("Misterio", "misterio"),
+            LegionscansGenreCheckBox("Psicológico", "psicologico"),
+            LegionscansGenreCheckBox("Reencarnación", "reencarnacion"),
+            LegionscansGenreCheckBox("Romance", "romance"),
+            LegionscansGenreCheckBox("Sci-Fi", "sci-fi"),
+            LegionscansGenreCheckBox("Seinen", "seinen"),
+            LegionscansGenreCheckBox("Shonen", "shonen"),
+            LegionscansGenreCheckBox("Sobrenatural", "sobrenatural"),
+            LegionscansGenreCheckBox("Tragedia", "tragedia"),
+            LegionscansGenreCheckBox("Vida Escolar", "vida-escolar"),
         ),
     ),
 )

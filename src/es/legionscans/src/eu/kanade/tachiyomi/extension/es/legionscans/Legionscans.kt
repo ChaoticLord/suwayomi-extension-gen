@@ -12,6 +12,7 @@ import keiyoushi.network.Fetch
 import keiyoushi.network.get
 import keiyoushi.network.rateLimit
 import keiyoushi.utils.asJsoup
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -59,10 +60,10 @@ abstract class Legionscans : MangaThemesia() {
 
             filters.forEach { filter ->
                 when (filter) {
-                    is StatusFilter -> builder.addQueryParameter("status", filter.selectedValue())
-                    is TypeFilter -> builder.addQueryParameter("type", filter.selectedValue())
-                    is OrderByFilter -> builder.addQueryParameter("order", filter.selectedValue())
-                    is GenreListFilter -> {
+                    is LegionscansStatusFilter -> builder.addQueryParameter("status", filter.selectedValue())
+                    is LegionscansTypeFilter -> builder.addQueryParameter("type", filter.selectedValue())
+                    is LegionscansOrderByFilter -> builder.addQueryParameter("order", filter.selectedValue())
+                    is LegionscansGenreListFilter -> {
                         filter.state.filter { it.state }.forEach { genre ->
                             builder.addQueryParameter("genre[]", genre.id)
                         }
@@ -120,7 +121,11 @@ abstract class Legionscans : MangaThemesia() {
     }
 
     override suspend fun getPageList(chapter: SChapter): List<Page> {
-        val chapterUrl = if (chapter.url.startsWith("http")) chapter.url else "$baseUrl${chapter.url}"
+        val chapterUrl = when {
+            chapter.url.startsWith("http") -> chapter.url
+            chapter.url.startsWith("/wp/") -> "${baseUrl.removeSuffix("/wp")}${chapter.url}"
+            else -> "$baseUrl${chapter.url}"
+        }
         val document = client.get(chapterUrl, Fetch.DOCUMENT).asJsoup()
 
         if (isNovelDocument(document, chapter.url)) {
@@ -234,7 +239,7 @@ abstract class Legionscans : MangaThemesia() {
             }.getOrNull() ?: continue
 
             val images = parsed.sources
-                ?.firstOrNull()
+                ?.firstOrNull { !it?.images.isNullOrEmpty() }
                 ?.images
                 ?.filterNotNull()
                 ?.filter { it.startsWith("http") && !isIgnoredImageUrl(it) }
