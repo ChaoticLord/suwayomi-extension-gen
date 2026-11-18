@@ -15,6 +15,7 @@ import keiyoushi.network.rateLimit
 import keiyoushi.utils.asJsoup
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -95,7 +96,10 @@ abstract class Legionscans : MangaThemesia() {
                 thumbnail_url = extractImageUrl(
                     document.selectFirst(".thumb img, .thumbook img, .ime img"),
                 ) ?: manga.thumbnail_url
-                description = document.select(".entry-content[itemprop=description] p, .wd-full .entry-content p, .synops p, .entry-content p")
+                description = document.select(
+                    ".entry-content[itemprop=description] p, .wd-full .entry-content p, " +
+                        ".synops p, .entry-content p",
+                )
                     .eachText()
                     .map { it.trim() }
                     .filter { it.isNotBlank() }
@@ -139,7 +143,9 @@ abstract class Legionscans : MangaThemesia() {
         val document = client.get(toAbsoluteUrl(chapter.url), Fetch.DOCUMENT).asJsoup()
 
         if (isNovelDocument(document, chapter.url)) {
-            throw Exception("Este capítulo es una novela de texto y no es compatible con lectores de imágenes.")
+            throw Exception(
+                "Este capítulo es una novela de texto y no es compatible con lectores de imágenes.",
+            )
         }
 
         val scriptUrls = extractTsReaderImages(document)
@@ -167,7 +173,9 @@ abstract class Legionscans : MangaThemesia() {
                 ?.length
                 ?: 0
             if (proseLength > 300) {
-                throw Exception("Este capítulo es una novela de texto y no es compatible con lectores de imágenes.")
+                throw Exception(
+                    "Este capítulo es una novela de texto y no es compatible con lectores de imágenes.",
+                )
             }
             throw Exception("No se encontraron páginas de imagen en el capítulo.")
         }
@@ -324,7 +332,7 @@ abstract class Legionscans : MangaThemesia() {
         var cleaned = raw.trim()
         cleaned = RELATIVE_DATE_SUFFIX_REGEX.replace(cleaned, "")
         cleaned = NEW_BADGE_SUFFIX_REGEX.replace(cleaned, "")
-        cleaned = cleaned.replace(Regex("""\s+"""), " ").trim()
+        cleaned = MULTI_SPACE_REGEX.replace(cleaned, " ").trim()
         return cleaned.ifBlank { "Capítulo" }
     }
 
@@ -339,7 +347,7 @@ abstract class Legionscans : MangaThemesia() {
                 val sources = root["sources"]?.jsonArray ?: return@runCatching emptyList()
                 val firstSource = sources.firstOrNull()?.jsonObject ?: return@runCatching emptyList()
                 firstSource["images"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.content }
+                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
                     ?.filter { isValidImageUrl(it) }
                     .orEmpty()
             }.getOrDefault(emptyList())
@@ -481,18 +489,55 @@ abstract class Legionscans : MangaThemesia() {
 
     companion object {
         private val NOVEL_KEYWORDS = listOf("novela", "novel", "light novel", "web novel")
-        private val CTA_PREFIXES = listOf("leer ", "empezar", "continuar", "primer ", "último ", "ultimo ", "first ", "new chapter")
-        private val BLOCKED_IMAGE_TOKENS = listOf(".svg", "gravatar.com/avatar", "/avatar", "logo", "banner", "icon", "loading", "placeholder", "blank.gif")
-        private val STATUS_WORDS = setOf("en emision", "emision", "finalizado", "completado", "pausado", "cancelado", "ongoing", "completed", "hiatus", "cancelled")
+        private val CTA_PREFIXES = listOf(
+            "leer ",
+            "empezar",
+            "continuar",
+            "primer ",
+            "último ",
+            "ultimo ",
+            "first ",
+            "new chapter",
+        )
+        private val BLOCKED_IMAGE_TOKENS = listOf(
+            ".svg",
+            "gravatar.com/avatar",
+            "/avatar",
+            "logo",
+            "banner",
+            "icon",
+            "loading",
+            "placeholder",
+            "blank.gif",
+        )
+        private val STATUS_WORDS = setOf(
+            "en emision",
+            "emision",
+            "finalizado",
+            "completado",
+            "pausado",
+            "cancelado",
+            "ongoing",
+            "completed",
+            "hiatus",
+            "cancelled",
+        )
 
         private val RELATIVE_DATE_SUFFIX_REGEX = Regex("""\s+hace\s+\d+.*$""", RegexOption.IGNORE_CASE)
-        private val NEW_BADGE_SUFFIX_REGEX = Regex("""\s+(?:Nuevo|New)(?:\s+\d+)?\s*$""", RegexOption.IGNORE_CASE)
+        private val NEW_BADGE_SUFFIX_REGEX = Regex(
+            """\s+(?:Nuevo|New)(?:\s+\d+)?\s*$""",
+            RegexOption.IGNORE_CASE,
+        )
+        private val MULTI_SPACE_REGEX = Regex("""\s+""")
         private val TS_READER_REGEX = Regex("""ts_reader\.run\((\{.*?\})\)\s*;?""", RegexOption.DOT_MATCHES_ALL)
         private val RATING_REGEX = Regex("""^\d+(?:[.,]\d+)?/\d+$""")
         private val PURE_NUMBER_REGEX = Regex("""^\d+$""")
         private val CHAPTER_BADGE_REGEX = Regex("""^cap\.?\s*\d+$""", RegexOption.IGNORE_CASE)
         private val DIACRITICS_REGEX = Regex("""\p{InCombiningDiacriticalMarks}+""")
-        private val RELATIVE_TIME_REGEX = Regex("""hace\s+(\d+)\s+([a-z]+)|(\d+)\s+([a-z]+)\s+ago""", RegexOption.IGNORE_CASE)
+        private val RELATIVE_TIME_REGEX = Regex(
+            """hace\s+(\d+)\s+([a-z]+)|(\d+)\s+([a-z]+)\s+ago""",
+            RegexOption.IGNORE_CASE,
+        )
 
         private val SPANISH_LOCALE = Locale.forLanguageTag("es")
         private val DATE_FORMATTERS = listOf(
